@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# author: James Stoup
+# date: 06/10/2016
+#
+# This is a simple check that runs before a git commit is processed 
+# to determine if the numbered files in the /setup directory 
+# conform to the standard that the migrate tool requires.
+
+
+
+# Check for mismatch in the *.up.cql files
+upList=`ls setup/*.cql | grep -v down.cql$ | grep -v initMig | cut -d "_" -f1 | sort -u`
+upSortedList=`ls setup/*.cql | grep -v down.cql$ | grep -v initMig | cut -d "_" -f1 `
+upListCnt=`ls setup/*.cql | grep -v down.cql$ | grep -v initMig | cut -d "_" -f1 | sort -u | wc -l`
+upSortedListCnt=`ls setup/*.cql | grep -v down.cql$ | grep -v initMig | cut -d "_" -f1 | wc -l`
+
+# Check for mismatch in the *.down.cql files
+downList=`ls setup/*.cql | grep -v up.cql$ | grep -v initMig | cut -d "_" -f1 | sort -u`
+downSortedList=`ls setup/*.cql | grep -v up.cql$ | grep -v initMig | cut -d "_" -f1 `
+downListCnt=`ls setup/*.cql | grep -v up.cql$ | grep -v initMig | cut -d "_" -f1 | sort -u | wc -l`
+downSortedListCnt=`ls setup/*.cql | grep -v up.cql$ | grep -v initMig | cut -d "_" -f1 | wc -l`
+
+# If they all match then let the commit proceed, otherwise abort with error
+if [[ $upListCnt == $upSortedListCnt ]] && [[ $downListCnt == $downSortedListCnt ]] ; then 
+    exit 0
+else
+    echo "ABORTING COMMIT - Duplicate setup files detect"
+    echo ""
+
+    # Check for duplicate UP files 
+    if [[ $upListCnt != $upSortedListCnt ]] ; then
+	echo "  Duplicate UP Files"
+	dupFileStr=`diff <(echo "$upList") <(echo "$upSortedList") | tail -1 | cut -d "/" -f2`
+	filesStr=`ls setup | grep -v down.cql$ | grep "^$dupFileStr"`
+	files=($filesStr)
+	for curFile in "${!files[@]}"
+	do
+	    echo "    ${files[$curFile]}"
+	done
+	echo ""
+    fi
+
+    # Check for duplicate DOWN files 
+    if [[ $downListCnt != $downSortedListCnt ]] ; then
+	echo "  Duplicate DOWN Files"
+	dupFileStr=`diff <(echo "$downList") <(echo "$downSortedList") | tail -1 | cut -d "/" -f2`
+	filesStr=`ls setup | grep -v up.cql$ | grep "^$dupFileStr"`
+	files=($filesStr)
+	for curFile in "${!files[@]}"
+	do
+	    echo "    ${files[$curFile]}"
+	done
+	echo ""
+    fi
+
+    exit 1
+fi
+
+
+
+

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+# Author: James Stoup
+
+# Quick sanity check to ensure we aren't trying to commit to master
+current_branch="$(git rev-parse --abbrev-ref HEAD)"
+if [[ $current_branch == "master" ]] ; then
+    echo "WARNING! You can't commit directly into master!"
+    exit 1
+fi
+
+# The regex to ensure the format of "KLE #1234" is used
+commit_regex='([Kk][Ll][Ee] #[0-9])'
+error_msg="\n\tABORTING COMMIT - Invalid Message\n\n\tThe first line of your commit message must include the repo name and ticket number.\n\tEXAMPLE: KLE #1234 fixed issue with button\n"
+
+# Check to see if the message conforms to our standard
+msg=`head -1 $1`
+if ! echo "$msg" | grep -iqE "$commit_regex" ; then
+
+    echo -e "$error_msg" >&2
+    exit 1
+
+fi
+

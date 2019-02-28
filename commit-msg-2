@@ -1,0 +1,63 @@
+#!/bin/sh
+
+# Author: James Stoup
+
+
+# subject line
+sub=`head -1 $1`
+sub_length=${#sub}
+
+# want to ignore merges
+if echo "$sub" | grep -qE "^Merge branch " ; then
+	exit 0
+fi
+
+
+# Quick sanity check to ensure we aren't trying to commit to master
+current_branch="$(git rev-parse --abbrev-ref HEAD)"
+if [[ $current_branch == "master" ]] ; then
+    echo "WARNING! You can't commit directly into master!"
+    exit 1
+fi
+
+# The regex to ensure the format of "ION-1234" is used
+commit_regex='(ION-[0-9]+,)'
+error_sub_too_long="\n\tABORTING COMMIT - Subject Too Long\n\n\tThe subject should be 50 characters or less\n"
+error_sub_too_short="\n\tABORTING COMMIT - Subject Too Short\n\n\tThe subject should be at least 10 characters long\n"
+error_sub_missing_id="\n\tABORTING COMMIT - Invalid Subject Line\n\n\tThe first line of your commit message must include the repo name, a dash, the ticket number, and a comma.\n\tEXAMPLE: ION-1234, Fixed Issue With Homepage\n"
+
+# check for ID at start of line
+if ! echo "$sub" | grep -qE "^$commit_regex" ; then
+    echo -e "$error_sub_missing_id" >&2
+    exit 1
+fi
+
+# get the length of the message after the first comma
+sub_del=","
+rest=${sub#*$sub_del}
+id_count=$(( ${#sub} - ${#rest} - ${#sub_del} + 1))
+sub_size=$(( $sub_length - $id_count ))
+
+# check if the subject is at least 10 chars
+if (( $sub_size < 10 )) ; then
+    echo -e "$error_sub_too_short" >&2
+    exit 1
+fi
+
+# check if the entire subject line is no more than 50 chars
+if (( $sub_length > 50 )) ; then
+    echo -e "$error_sub_too_long" >&2
+    exit 1
+fi
+
+# now make it pretty
+body=`tail -n +2 $1`
+cap_msg=`echo $sub | sed -e "s/\b\(.\)/\u\1/g"`
+
+# ok, rewrite the commit message and call it done
+echo $cap_msg > $1
+echo " " >> $1
+echo $body >> $1
+
+
+
